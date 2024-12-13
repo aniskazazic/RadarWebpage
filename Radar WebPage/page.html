@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .toggle-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #toggleDetected {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #toggleDetected:hover {
+            background-color: #0056b3;
+        }
+
+        .detected-field, .controls {
+            display: none;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .detected-field label,
+        .controls label {
+            font-size: 1rem;
+            color: #ddd;
+            margin-right: 10px;
+        }
+
+        .detected-field input[type="text"],
+        .controls input[type="text"] {
+            font-size: 1.2rem;
+            padding: 10px;
+            width: 200px;
+            text-align: center;
+            background-color: #333;
+            border: 2px solid #28a745;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            outline: none;
+        }
+
+        .toggle-container .controls,
+        .toggle-container .detected-field {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <button id="logoutButton">Logout</button>
+    <div class="container">
+        <header>
+            <h1>Loading data from Radar</h1>
+            <p>Distance data is loaded in real time from Firebase database.</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Mesto za sliku -->
+            <div id="radarImage">
+                <img src="Screenshot 2024-12-12 170552.png" alt="Radar Image" id="radarImageDisplay">
+            </div>
+
+            <!-- Toggle button and detected field -->
+            <div class="toggle-container">
+                <button id="toggleDetected">Show</button>
+
+                <!-- Distance input -->
+                <div class="controls" id="distanceField">
+                    <label for="distance">Distance:  </label>
+                    <input type="text" id="distance" readonly>
+                </div>
+
+                <!-- Detected time input -->
+                <div class="detected-field" id="detectedField">
+                    <label for="detectedTime">Detected At:</label>
+                    <input type="text" id="detectedTime" readonly>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Radar System. All rights reserved.</p>
+            <p>Last update: <span id="lastUpdateTime">N/A</span></p>
+        </footer>
+    </div>
+
+    <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getDatabase, ref, query, orderByKey, limitToLast, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCt-eiY9MbjREq2DPevXE-gohg2ovDpFAI",
+        authDomain: "radar-22202.firebaseapp.com",
+        databaseURL: "https://radar-22202-default-rtdb.europe-west1.firebasedatabase.app/",
+        projectId: "radar-22202",
+        storageBucket: "radar-22202.appspot.com",
+        messagingSenderId: "110183934919515858618",
+        appId: "1:110183934919515858618:web:bb2456f17d4a4f939ac4f5"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const database = getDatabase(app);
+
+    signInWithEmailAndPassword(auth, "aniskazazic3@gmail.com", "anisanis")
+        .then(() => {
+            console.log("Successfully signed in");
+            loadLatestDistanceData();
+        })
+        .catch((error) => {
+            console.error(`Authentication error: ${error.code} - ${error.message}`);
+        });
+
+    function loadLatestDistanceData() {
+        const distanceRef = ref(database, 'Distance');
+        const latestDistanceQuery = query(distanceRef, orderByKey(), limitToLast(1));
+
+        onValue(latestDistanceQuery, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const latestKey = Object.keys(data)[0];
+                const latestDistance = parseFloat(data[latestKey]);
+
+                animateDistance(latestDistance);
+
+                // Postavljanje trenutnog vremena u animiranoj formi
+                const currentTime = new Date();
+                animateDetectedTime(currentTime);  // Animira vreme detekcije
+            }
+        });
+    }
+
+    function animateDistance(newDistance) {
+        const distanceElement = document.getElementById('distance');
+        const currentDistance = parseFloat(distanceElement.value) || 0;
+        const step = (newDistance - currentDistance) / 20;
+        let count = 0;
+
+        const interval = setInterval(() => {
+            if (count < 20) {
+                distanceElement.value = (currentDistance + step * count).toFixed(2);
+                count++;
+            } else {
+                distanceElement.value = newDistance.toFixed(2);
+                clearInterval(interval);
+            }
+        }, 50);
+    }
+
+    function animateDetectedTime(newTime) {
+    const detectedTimeElement = document.getElementById('detectedTime');
+    const currentTime = detectedTimeElement.value ? new Date(detectedTimeElement.value) : new Date();
+    
+    // Ako vreme nije validno, postavi trenutni datum kao početnu tačku
+    const startTime = currentTime instanceof Date && !isNaN(currentTime) ? currentTime.getTime() : new Date().getTime();
+    const endTime = newTime.getTime();
+    const step = (endTime - startTime) / 20;
+    let count = 0;
+
+    const interval = setInterval(() => {
+        if (count < 20) {
+            const currentAnimatedTime = new Date(startTime + step * count);
+            detectedTimeElement.value = currentAnimatedTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+            count++;
+        } else {
+            detectedTimeElement.value = newTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+            clearInterval(interval);
+        }
+    }, 50);  // Brzina animacije (50 ms za svaki korak)
+}
+
+
+    document.getElementById('toggleDetected').addEventListener('click', () => {
+        const detectedField = document.getElementById('detectedField');
+        const distanceField = document.getElementById('distanceField');
+
+        if (detectedField.style.display === 'none' || detectedField.style.display === '') {
+            detectedField.style.display = 'flex';
+            distanceField.style.display = 'flex';
+        } else {
+            detectedField.style.display = 'none';
+            distanceField.style.display = 'none';
+        }
+    });
+
+    const lastUpdateTime = new Date().toLocaleString();
+    document.getElementById('lastUpdateTime').textContent = lastUpdateTime;
+
+    document.getElementById('logoutButton').addEventListener('click', () => {
+        auth.signOut().then(() => {
+            console.log("User logged out");
+            window.location.href = 'login.html';
+        }).catch((error) => {
+            console.error("Logout error:", error);
+        });
+    });
+    </script>
+</body>
+</html>
